@@ -1,0 +1,412 @@
+// schema.prisma
+// Premium Apple Orchard - Chopal, Shimla
+// Production-ready Prisma schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ───────────────────────────────────────────────
+// CORE USER MODEL
+// ───────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  phone     String?  @unique
+  firstName String
+  lastName  String
+  role      UserRole @default(CUSTOMER)
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  orders       Order[]
+  b2bInquiries B2BInquiry[]
+  tourBookings TourBooking[]
+  reviews      Review[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  CUSTOMER
+  WHOLESALER
+  ADMIN
+  FARMER
+}
+
+// ───────────────────────────────────────────────
+// PRODUCT & INVENTORY
+// ───────────────────────────────────────────────
+model Product {
+  id             String       @id @default(cuid())
+  slug           String       @unique
+  name           String
+  variety        AppleVariety
+  tagline        String
+  description    String       @db.Text
+  shortDesc      String
+  pricePerKg     Decimal      @db.Decimal(10, 2)
+  comparePrice   Decimal?     @db.Decimal(10, 2)
+  stockKg        Decimal      @db.Decimal(10, 2)
+  isAvailable    Boolean      @default(true)
+  isPreOrder     Boolean      @default(false)
+  preOrderOpens  DateTime?
+  preOrderCloses DateTime?
+  harvestStart   DateTime?
+  harvestEnd     DateTime?
+  sweetness      Int          @default(7) // 1-10 scale
+  crispness      Int          @default(8) // 1-10 scale
+  acidity        Int          @default(6) // 1-10 scale
+  images         String[] // Cloudinary URLs
+  videoUrl       String?
+  originStory    String?      @db.Text
+  altitudeMeters Int?
+  treeAgeYears   Int?
+  certifications String[] // Organic, GI Tagged, etc.
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  batches    BatchTraceability[]
+  orderItems OrderItem[]
+  reviews    Review[]
+
+  @@map("products")
+}
+
+enum AppleVariety {
+  ROYAL_DELICIOUS
+  RED_DELICIOUS
+  GOLDEN_DELICIOUS
+  DARK_BARON
+  FUJI
+  GRANNY_SMITH
+}
+
+// ───────────────────────────────────────────────
+// BATCH TRACEABILITY (QR/Batch Lookup)
+// ───────────────────────────────────────────────
+model BatchTraceability {
+  id              String    @id @default(cuid())
+  batchCode       String    @unique // e.g., "CHP-2025-RD-001"
+  productId       String
+  harvestDate     DateTime
+  treeBlock       String // e.g., "Block-A, Row 12-18"
+  farmerName      String
+  farmerNotes     String?   @db.Text
+  altitudeMeters  Int
+  weatherHarvest  String? // JSON string of weather at harvest
+  pickedBy        String[] // Worker names
+  packedDate      DateTime
+  packedBy        String
+  coldStorageDays Int       @default(0)
+  certifications  String[]
+  images          String[] // Harvest photos
+  qrCodeUrl       String?
+  isVerified      Boolean   @default(false)
+  verifiedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("batch_traceability")
+}
+
+// ───────────────────────────────────────────────
+// ORDER SYSTEM (D2C + Pre-order)
+// ───────────────────────────────────────────────
+model Order {
+  id            String        @id @default(cuid())
+  orderNumber   String        @unique // e.g., "CHP-ORD-2508001"
+  userId        String?
+  guestEmail    String?
+  guestPhone    String?
+  guestName     String?
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentId     String? // Razorpay/Cashfree payment ID
+  paymentMethod String?
+  subtotal      Decimal       @db.Decimal(10, 2)
+  shippingCost  Decimal       @db.Decimal(10, 2)
+  tax           Decimal       @db.Decimal(10, 2)
+  total         Decimal       @db.Decimal(10, 2)
+  currency      String        @default("INR")
+
+  // Shipping Address
+  shippingName    String
+  shippingAddress String
+  shippingCity    String
+  shippingState   String
+  shippingPincode String
+  shippingPhone   String
+
+  // Delivery
+  deliveryDate   DateTime?
+  trackingNumber String?
+  trackingUrl    String?
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user  User?       @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  PACKED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  productId  String
+  batchCode  String?
+  quantityKg Decimal @db.Decimal(10, 2)
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+// ───────────────────────────────────────────────
+// B2B INQUIRY ENGINE
+// ───────────────────────────────────────────────
+model B2BInquiry {
+  id            String  @id @default(cuid())
+  inquiryNumber String  @unique
+  userId        String?
+
+  // Contact Info
+  companyName String
+  contactName String
+  email       String
+  phone       String
+  designation String?
+
+  // Business Details
+  businessType    BusinessType
+  annualVolumeKg  Decimal        @db.Decimal(12, 2)
+  targetPrice     Decimal?       @db.Decimal(10, 2)
+  varieties       AppleVariety[]
+  deliveryCity    String
+  deliveryState   String
+  deliveryPincode String
+
+  // Requirements
+  packagingType       PackagingType @default(CARTON_10KG)
+  deliveryFrequency   String        @default("MONTHLY")
+  startDate           DateTime
+  contractMonths      Int           @default(12)
+  specialRequirements String?       @db.Text
+
+  // Status
+  status         InquiryStatus @default(NEW)
+  assignedTo     String?
+  notes          String?       @db.Text
+  responseSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("b2b_inquiries")
+}
+
+enum BusinessType {
+  RETAIL_CHAIN
+  HOTEL_RESTAURANT
+  EXPORTER
+  PROCESSOR
+  DISTRIBUTOR
+  ONLINE_STORE
+  OTHER
+}
+
+enum PackagingType {
+  CARTON_5KG
+  CARTON_10KG
+  CARTON_15KG
+  WOODEN_CRATE_20KG
+  CUSTOM
+}
+
+enum InquiryStatus {
+  NEW
+  UNDER_REVIEW
+  QUOTE_SENT
+  NEGOTIATING
+  APPROVED
+  REJECTED
+  CONVERTED
+}
+
+// ───────────────────────────────────────────────
+// ECO-TOURISM / ORCHARD VISIT BOOKING
+// ───────────────────────────────────────────────
+model TourBooking {
+  id            String  @id @default(cuid())
+  bookingNumber String  @unique
+  userId        String?
+
+  // Guest Info
+  guestName  String
+  guestEmail String
+  guestPhone String
+  guestCount Int
+
+  // Booking Details
+  tourDate DateTime
+  tourSlot TourSlot
+  tourType TourType @default(HARVEST_WALK)
+
+  // Preferences
+  dietaryRestrictions String?
+  specialRequests     String?
+
+  // Payment
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentId     String?
+
+  // Status
+  status      BookingStatus @default(CONFIRMED)
+  checkedIn   Boolean       @default(false)
+  checkedInAt DateTime?
+
+  // Feedback
+  rating   Int?
+  feedback String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("tour_bookings")
+}
+
+enum TourSlot {
+  MORNING_9AM // 9:00 AM - 12:00 PM
+  AFTERNOON_2PM // 2:00 PM - 5:00 PM
+  SUNSET_5PM // 5:00 PM - 7:00 PM
+}
+
+enum TourType {
+  HARVEST_WALK
+  PHOTOGRAPHY_TOUR
+  FAMILY_PICNIC
+  CORPORATE_RETREAT
+  APPLE_PICKING
+}
+
+enum BookingStatus {
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// ───────────────────────────────────────────────
+// REVIEWS & SOCIAL PROOF
+// ───────────────────────────────────────────────
+model Review {
+  id        String  @id @default(cuid())
+  userId    String?
+  productId String?
+
+  // Review Content
+  rating Int // 1-5
+  title  String?
+  body   String   @db.Text
+  images String[]
+
+  // Moderation
+  isVerified Boolean @default(false)
+  isFeatured Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id])
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@map("reviews")
+}
+
+// ───────────────────────────────────────────────
+// NOTIFICATION LOG (Twilio / SendGrid / WhatsApp)
+// ───────────────────────────────────────────────
+model NotificationLog {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  recipient String
+  subject   String?
+  body      String           @db.Text
+  status    String           @default("PENDING") // SENT, FAILED, DELIVERED
+  error     String?
+  sentAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@map("notification_logs")
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  WHATSAPP
+  PUSH
+}
+
+// ───────────────────────────────────────────────
+// WEATHER CACHE (OpenWeatherMap)
+// ───────────────────────────────────────────────
+model WeatherCache {
+  id          String   @id @default(cuid())
+  location    String   @default("Chopal, Himachal Pradesh")
+  temperature Float
+  feelsLike   Float
+  humidity    Int
+  windSpeed   Float
+  condition   String
+  icon        String
+  elevation   Int      @default(2300)
+  fetchedAt   DateTime @default(now())
+
+  @@map("weather_cache")
+}
