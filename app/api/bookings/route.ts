@@ -12,6 +12,9 @@ const bookingSchema = z.object({
   specialNotes: z.string().optional().nullable(),
 });
 
+// Price per guest (adjust if needed)
+const PRICE_PER_GUEST = 500;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -40,6 +43,8 @@ export async function POST(request: NextRequest) {
     // @ts-ignore
     const bookingModel = prisma.tourBooking || prisma.tour_bookings || prisma.ecoTourismBooking;
 
+    const calculatedAmount = validatedData.guestsCount * PRICE_PER_GUEST;
+
     const newBooking = await bookingModel.create({
       data: {
         bookingNumber,
@@ -49,6 +54,7 @@ export async function POST(request: NextRequest) {
         tourDate: validatedData.visitDate,
         guestCount: validatedData.guestsCount,
         tourSlot: validatedData.tourSlot,
+        amount: calculatedAmount, // Added required amount field
         specialNotes: validatedData.specialNotes || null,
       },
     });
