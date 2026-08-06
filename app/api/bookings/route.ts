@@ -9,7 +9,7 @@ const bookingSchema = z.object({
   guestPhone: z.string().min(10, "Valid phone number is required"),
   visitDate: z.string().transform((str) => new Date(str)),
   guestsCount: z.number().int().min(1, "At least 1 guest is required").max(20, "Maximum 20 guests per slot"),
-  tourSlot: z.nativeEnum(TourSlot).default(TourSlot.MORNING),
+  tourSlot: z.nativeEnum(TourSlot).default(TourSlot.MORNING_9AM),
   specialNotes: z.string().optional().nullable(),
 });
 
@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = bookingSchema.parse(body);
 
-    // Collision-resistant booking reference generator
     let bookingNumber = "";
     let isUnique = false;
 
@@ -53,7 +52,7 @@ export async function POST(request: NextRequest) {
         guestPhone: validatedData.guestPhone,
         tourDate: validatedData.visitDate,
         guestCount: validatedData.guestsCount,
-        tourSlot: validatedData.tourSlot, // Validated against Prisma's TourSlot enum
+        tourSlot: validatedData.tourSlot,
         amount: calculatedAmount,
         specialNotes: validatedData.specialNotes || null,
       },
