@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = bookingSchema.parse(body);
 
+    // Collision-resistant booking reference generator
     let bookingNumber = "";
     let isUnique = false;
 
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
         guestCount: validatedData.guestsCount,
         tourSlot: validatedData.tourSlot,
         amount: calculatedAmount,
-        specialNotes: validatedData.specialNotes || null,
+        specialRequests: validatedData.specialNotes || null, // Mapped to specialRequests for Prisma schema
       },
     });
 
