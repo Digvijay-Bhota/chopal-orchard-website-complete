@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
         guestName: validatedData.guestName,
         guestEmail: validatedData.guestEmail,
         guestPhone: validatedData.guestPhone,
-        visitDate: validatedData.visitDate,
-        guestCount: validatedData.guestsCount, // Mapped to guestCount (singular) to match Prisma schema
+        tourDate: validatedData.visitDate, // Mapped to tourDate for Prisma schema
+        guestCount: validatedData.guestsCount,
         specialNotes: validatedData.specialNotes || null,
       },
     });
