@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { TourSlot } from "@prisma/client";
 import { z } from "zod";
 
 const bookingSchema = z.object({
@@ -8,11 +9,10 @@ const bookingSchema = z.object({
   guestPhone: z.string().min(10, "Valid phone number is required"),
   visitDate: z.string().transform((str) => new Date(str)),
   guestsCount: z.number().int().min(1, "At least 1 guest is required").max(20, "Maximum 20 guests per slot"),
-  tourSlot: z.string().default("MORNING"),
+  tourSlot: z.nativeEnum(TourSlot).default(TourSlot.MORNING),
   specialNotes: z.string().optional().nullable(),
 });
 
-// Price per guest (adjust if needed)
 const PRICE_PER_GUEST = 500;
 
 export async function POST(request: NextRequest) {
@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
         guestPhone: validatedData.guestPhone,
         tourDate: validatedData.visitDate,
         guestCount: validatedData.guestsCount,
-        tourSlot: validatedData.tourSlot,
-        amount: calculatedAmount, // Added required amount field
+        tourSlot: validatedData.tourSlot, // Validated against Prisma's TourSlot enum
+        amount: calculatedAmount,
         specialNotes: validatedData.specialNotes || null,
       },
     });
