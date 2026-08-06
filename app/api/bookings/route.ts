@@ -8,6 +8,7 @@ const bookingSchema = z.object({
   guestPhone: z.string().min(10, "Valid phone number is required"),
   visitDate: z.string().transform((str) => new Date(str)),
   guestsCount: z.number().int().min(1, "At least 1 guest is required").max(20, "Maximum 20 guests per slot"),
+  tourSlot: z.string().default("MORNING"),
   specialNotes: z.string().optional().nullable(),
 });
 
@@ -45,8 +46,9 @@ export async function POST(request: NextRequest) {
         guestName: validatedData.guestName,
         guestEmail: validatedData.guestEmail,
         guestPhone: validatedData.guestPhone,
-        tourDate: validatedData.visitDate, // Mapped to tourDate for Prisma schema
+        tourDate: validatedData.visitDate,
         guestCount: validatedData.guestsCount,
+        tourSlot: validatedData.tourSlot,
         specialNotes: validatedData.specialNotes || null,
       },
     });

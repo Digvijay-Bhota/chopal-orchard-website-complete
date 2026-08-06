@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react";
-import { Calendar, Users, CheckCircle, User, Mail, Phone, Loader2, AlertCircle } from "lucide-react";
+import { Calendar, Users, CheckCircle, User, Mail, Phone, Clock, Loader2, AlertCircle } from "lucide-react";
 
 export default function EcoTourismBooking() {
   const [selectedDate, setSelectedDate] = useState("");
@@ -16,6 +16,7 @@ export default function EcoTourismBooking() {
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [tourSlot, setTourSlot] = useState("MORNING");
   
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -34,9 +35,10 @@ export default function EcoTourismBooking() {
         body: JSON.stringify({
           visitDate: selectedDate,
           guestsCount: Number(guests),
-          guestName: guestName || "Guest",
-          guestEmail: guestEmail || "guest@example.com",
-          guestPhone: guestPhone || "0000000000",
+          guestName,
+          guestEmail,
+          guestPhone,
+          tourSlot,
         }),
       });
 
@@ -46,7 +48,7 @@ export default function EcoTourismBooking() {
         throw new Error(resData.error || "Failed to submit reservation.");
       }
 
-      setBookingNumber(resData.bookingNumber || resData.id || "CONFIRMED");
+      setBookingNumber(resData.bookingNumber || resData.booking?.bookingNumber || "CONFIRMED");
       setSubmitted(true);
     } catch (err: any) {
       console.error("Booking Error:", err);
@@ -128,7 +130,7 @@ export default function EcoTourismBooking() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-left space-y-1">
                 <label className="text-xs font-semibold text-mist-700 flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-ruby-700" /> Visit Date
@@ -139,13 +141,28 @@ export default function EcoTourismBooking() {
                   value={selectedDate}
                   min={new Date().toISOString().split("T")[0]}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-mist-300 bg-white text-mist-900 text-sm focus:outline-none focus:ring-2 focus:ring-ruby-600"
+                  className="w-full px-3 py-3 rounded-xl border border-mist-300 bg-white text-mist-900 text-sm focus:outline-none focus:ring-2 focus:ring-ruby-600"
                 />
               </div>
 
               <div className="text-left space-y-1">
                 <label className="text-xs font-semibold text-mist-700 flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-ruby-700" /> Number of Guests
+                  <Clock className="w-4 h-4 text-ruby-700" /> Time Slot
+                </label>
+                <select
+                  value={tourSlot}
+                  onChange={(e) => setTourSlot(e.target.value)}
+                  className="w-full px-3 py-3 rounded-xl border border-mist-300 bg-white text-mist-900 text-sm focus:outline-none focus:ring-2 focus:ring-ruby-600"
+                >
+                  <option value="MORNING">Morning (09:00 AM)</option>
+                  <option value="AFTERNOON">Afternoon (02:00 PM)</option>
+                  <option value="EVENING">Sunset (05:00 PM)</option>
+                </select>
+              </div>
+
+              <div className="text-left space-y-1">
+                <label className="text-xs font-semibold text-mist-700 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-ruby-700" /> Guests
                 </label>
                 <input
                   type="number"
@@ -153,7 +170,7 @@ export default function EcoTourismBooking() {
                   max="20"
                   value={guests}
                   onChange={(e) => setGuests(parseInt(e.target.value) || 1)}
-                  className="w-full px-4 py-3 rounded-xl border border-mist-300 bg-white text-mist-900 text-sm focus:outline-none focus:ring-2 focus:ring-ruby-600"
+                  className="w-full px-3 py-3 rounded-xl border border-mist-300 bg-white text-mist-900 text-sm focus:outline-none focus:ring-2 focus:ring-ruby-600"
                 />
               </div>
             </div>
