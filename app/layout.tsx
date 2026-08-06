@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Inter, Playfair_Display } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { metadata, viewport, generateStructuredData } from "./metadata";
 import "./globals.css";
 import Script from "next/script";
@@ -13,6 +14,7 @@ import Script from "next/script";
  *   • JSON-LD structured data injection
  *   • Global CSS variables for theming
  *   • Razorpay script preloading
+ *   • Vercel Web Analytics integration
  */
 
 const inter = Inter({
@@ -66,6 +68,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="font-sans antialiased bg-mist-50 text-mist-900" suppressHydrationWarning>
         {children}
+        <Analytics />
       </body>
     </html>
   );
