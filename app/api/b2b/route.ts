@@ -8,19 +8,19 @@ const b2bInquirySchema = z.object({
   contactName: z.string().min(2, "Contact name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Valid phone number is required"),
-  designation: z.string().optional(),
+  designation: z.string().optional().nullable(),
   businessType: z.nativeEnum(BusinessType),
   annualVolumeKg: z.number().positive("Volume must be greater than 0"),
-  targetPrice: z.number().optional(),
+  targetPrice: z.number().optional().nullable(),
   varieties: z.array(z.nativeEnum(AppleVariety)).min(1, "Select at least one variety"),
   deliveryCity: z.string().min(2, "City is required"),
   deliveryState: z.string().min(2, "State is required"),
   deliveryPincode: z.string().min(6, "Pincode is required"),
   packagingType: z.nativeEnum(PackagingType).default(PackagingType.CARTON_10KG),
   deliveryFrequency: z.string().default("MONTHLY"),
-  startDate: z.string().transform((str) => new Date(str)),
+  startDate: z.string().optional().nullable().transform((val) => (val ? new Date(val) : new Date())),
   contractMonths: z.number().default(12),
-  specialRequirements: z.string().optional(),
+  specialRequirements: z.string().optional().nullable(),
 });
 
 export async function POST(request: NextRequest) {
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = b2bInquirySchema.parse(body);
 
-    // Guaranteed collision-resistant inquiry number loop
+    // Collision-resistant inquiry number generator
     let inquiryNumber = "";
     let isUnique = false;
 
@@ -52,10 +52,10 @@ export async function POST(request: NextRequest) {
         contactName: validatedData.contactName,
         email: validatedData.email,
         phone: validatedData.phone,
-        designation: validatedData.designation,
+        designation: validatedData.designation || null,
         businessType: validatedData.businessType,
         annualVolumeKg: validatedData.annualVolumeKg,
-        targetPrice: validatedData.targetPrice,
+        targetPrice: validatedData.targetPrice || null,
         varieties: validatedData.varieties,
         deliveryCity: validatedData.deliveryCity,
         deliveryState: validatedData.deliveryState,
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         deliveryFrequency: validatedData.deliveryFrequency,
         startDate: validatedData.startDate,
         contractMonths: validatedData.contractMonths,
-        specialRequirements: validatedData.specialRequirements,
+        specialRequirements: validatedData.specialRequirements || null,
       },
     });
 
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.errors },
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
     console.error("B2B API Error:", error);
     return NextResponse.json(
-      { error: "Failed to process inquiry" },
+      { error: error?.message || "Failed to process inquiry" },
       { status: 500 }
     );
   }
