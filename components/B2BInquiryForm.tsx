@@ -3,17 +3,8 @@
 /**
  * B2BInquiryForm.tsx
  * ───────────────────────────────────────────────
- * Multi-step B2B wholesale inquiry form with validation.
- * Features:
- *   • 4-step wizard: Contact → Business → Requirements → Review
- *   • Real-time Zod validation per step
- *   • Dynamic conditional fields based on business type
- *   • WhatsApp Business API trigger on submission
- *   • Progress indicator with step validation
- *   • Animated transitions between steps
- *   • Success state with inquiry number
- *
- * Dependencies: framer-motion, lucide-react, zod
+ * Multi-step B2B wholesale inquiry form with live API submission.
+ * Saves directly into the Supabase database via /api/b2b route.
  */
 
 import { useState, useCallback } from "react";
@@ -27,7 +18,6 @@ import {
   Package,
   TrendingUp,
   Calendar,
-  MessageSquare,
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
@@ -169,7 +159,7 @@ function validateStep(step: number, data: FormData): FormErrors {
   return errors;
 }
 
-// ─── Step Components ───────────────────────────
+// ─── Step Indicator Component ───────────────────────────
 function StepIndicator({
   currentStep,
   completedSteps,
@@ -260,11 +250,11 @@ export default function B2BInquiryForm() {
   const [submitted, setSubmitted] = useState(false);
   const [inquiryNumber, setInquiryNumber] = useState("");
   const [copied, setCopied] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const updateField = useCallback(
     (field: keyof FormData, value: string | string[]) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
-      // Clear error when user types
       if (errors[field]) {
         setErrors((prev) => {
           const next = { ...prev };
@@ -316,28 +306,48 @@ export default function B2BInquiryForm() {
     }
 
     setSubmitting(true);
+    setApiError(null);
 
-    // Simulate API submission
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const response = await fetch("/api/b2b", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: formData.companyName,
+          contactName: formData.contactName,
+          email: formData.email,
+          phone: formData.phone,
+          designation: formData.designation,
+          businessType: formData.businessType,
+          annualVolumeKg: Number(formData.annualVolumeKg),
+          targetPrice: formData.targetPrice ? Number(formData.targetPrice) : null,
+          varieties: formData.varieties,
+          deliveryCity: formData.deliveryCity,
+          deliveryState: formData.deliveryState,
+          deliveryPincode: formData.deliveryPincode,
+          packagingType: formData.packagingType,
+          deliveryFrequency: formData.deliveryFrequency,
+          startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
+          contractMonths: Number(formData.contractMonths),
+          specialRequirements: formData.specialRequirements,
+        }),
+      });
 
-    const mockInquiryNumber = `CHP-B2B-${Date.now().toString().slice(-6)}`;
-    setInquiryNumber(mockInquiryNumber);
-    setSubmitted(true);
-    setSubmitting(false);
+      const resData = await response.json();
 
-    // Trigger WhatsApp notification (in production: server-side API call)
-    const whatsappMessage = encodeURIComponent(
-      `New B2B Inquiry Received!\n\n` +
-        `Inquiry #: ${mockInquiryNumber}\n` +
-        `Company: ${formData.companyName}\n` +
-        `Contact: ${formData.contactName}\n` +
-        `Volume: ${formData.annualVolumeKg} kg/year\n` +
-        `Varieties: ${formData.varieties.join(", ")}\n` +
-        `Delivery: ${formData.deliveryCity}, ${formData.deliveryState}`
-    );
+      if (!response.ok) {
+        throw new Error(resData.error || "Failed to submit B2B inquiry.");
+      }
 
-    // In production, this would be a server action calling Twilio/WhatsApp Business API
-    console.log(`WhatsApp trigger: https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`);
+      const generatedNum = resData.inquiryNumber || resData.id || `CHP-B2B-${Date.now().toString().slice(-6)}`;
+      setInquiryNumber(generatedNum);
+      setSubmitted(true);
+    } catch (err: any) {
+      console.error("B2B Submission Error:", err);
+      setApiError(err.message || "An unexpected error occurred while saving your inquiry.");
+    } finally {
+      setSubmitting(false);
+    }
   }, [currentStep, formData]);
 
   const copyInquiryNumber = useCallback(() => {
@@ -353,7 +363,7 @@ export default function B2BInquiryForm() {
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, "_blank");
   }, [inquiryNumber]);
 
-  // ─── Step 1: Contact Details ─────────────────
+  // ─── Step Renderers ───────────────────────────
   const renderStep1 = () => (
     <div className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -476,10 +486,8 @@ export default function B2BInquiryForm() {
     </div>
   );
 
-  // ─── Step 2: Business Details ────────────────
   const renderStep2 = () => (
     <div className="space-y-5">
-      {/* Business Type */}
       <div>
         <label className="block text-mist-700 text-sm font-medium mb-3">
           Business Type <span className="text-ruby-500">*</span>
@@ -491,6 +499,7 @@ export default function B2BInquiryForm() {
             return (
               <button
                 key={type.value}
+                type="button"
                 onClick={() => updateField("businessType", type.value)}
                 className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                   isSelected
@@ -521,7 +530,6 @@ export default function B2BInquiryForm() {
         )}
       </div>
 
-      {/* Volume & Price */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
           <label className="block text-mist-700 text-sm font-medium mb-2">
@@ -574,7 +582,6 @@ export default function B2BInquiryForm() {
         </div>
       </div>
 
-      {/* Varieties */}
       <div>
         <label className="block text-mist-700 text-sm font-medium mb-3">
           Interested Varieties <span className="text-ruby-500">*</span>
@@ -585,6 +592,7 @@ export default function B2BInquiryForm() {
             return (
               <button
                 key={variety.value}
+                type="button"
                 onClick={() => toggleVariety(variety.value)}
                 className={`px-4 py-2 rounded-full text-sm font-medium border-2 transition-all duration-200 ${
                   isSelected
@@ -605,7 +613,6 @@ export default function B2BInquiryForm() {
         )}
       </div>
 
-      {/* Delivery Location */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div>
           <label className="block text-mist-700 text-sm font-medium mb-2">
@@ -672,10 +679,8 @@ export default function B2BInquiryForm() {
     </div>
   );
 
-  // ─── Step 3: Requirements ────────────────────
   const renderStep3 = () => (
     <div className="space-y-5">
-      {/* Packaging */}
       <div>
         <label className="block text-mist-700 text-sm font-medium mb-3">
           Packaging Preference <span className="text-ruby-500">*</span>
@@ -686,6 +691,7 @@ export default function B2BInquiryForm() {
             return (
               <button
                 key={pkg.value}
+                type="button"
                 onClick={() => updateField("packagingType", pkg.value)}
                 className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                   isSelected
@@ -716,7 +722,6 @@ export default function B2BInquiryForm() {
         )}
       </div>
 
-      {/* Frequency & Duration */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
           <label className="block text-mist-700 text-sm font-medium mb-2">
@@ -760,7 +765,6 @@ export default function B2BInquiryForm() {
         </div>
       </div>
 
-      {/* Start Date */}
       <div>
         <label className="block text-mist-700 text-sm font-medium mb-2">
           Preferred Start Date <span className="text-ruby-500">*</span>
@@ -781,7 +785,6 @@ export default function B2BInquiryForm() {
         )}
       </div>
 
-      {/* Special Requirements */}
       <div>
         <label className="block text-mist-700 text-sm font-medium mb-2">
           Special Requirements{" "}
@@ -801,7 +804,6 @@ export default function B2BInquiryForm() {
     </div>
   );
 
-  // ─── Step 4: Review ──────────────────────────
   const renderStep4 = () => (
     <div className="space-y-6">
       <div className="bg-mist-50 rounded-2xl p-6 border border-mist-200">
@@ -880,9 +882,11 @@ export default function B2BInquiryForm() {
               />
               <ReviewItem
                 label="Contract"
-                value={`${formData.contractMonths} months from ${new Date(
+                value={`${formData.contractMonths} months from ${
                   formData.startDate
-                ).toLocaleDateString("en-IN")}`}
+                    ? new Date(formData.startDate).toLocaleDateString("en-IN")
+                    : "N/A"
+                }`}
                 icon={Calendar}
               />
             </div>
@@ -899,6 +903,13 @@ export default function B2BInquiryForm() {
           )}
         </div>
       </div>
+
+      {apiError && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 text-sm">
+          <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+          <p>{apiError}</p>
+        </div>
+      )}
     </div>
   );
 
@@ -922,7 +933,7 @@ export default function B2BInquiryForm() {
     );
   }
 
-  // ─── Success State ───────────────────────────
+  // ─── Success View ─────────────────────────────
   if (submitted) {
     return (
       <section id="b2b" className="py-24 px-6 md:px-12 bg-mist-50">
@@ -954,6 +965,7 @@ export default function B2BInquiryForm() {
                   {inquiryNumber}
                 </span>
                 <button
+                  type="button"
                   onClick={copyInquiryNumber}
                   className="p-2 hover:bg-mist-200 rounded-lg transition-colors"
                   title="Copy inquiry number"
@@ -969,6 +981,7 @@ export default function B2BInquiryForm() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
+                type="button"
                 onClick={openWhatsApp}
                 className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-all duration-300 flex items-center gap-2"
               >
@@ -976,6 +989,7 @@ export default function B2BInquiryForm() {
                 Discuss on WhatsApp
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setSubmitted(false);
                   setCurrentStep(1);
@@ -1011,11 +1025,10 @@ export default function B2BInquiryForm() {
     );
   }
 
-  // ─── Main Render ─────────────────────────────
+  // ─── Main Form View ───────────────────────────
   return (
     <section id="b2b" className="py-24 px-6 md:px-12 bg-mist-50">
       <div className="mx-auto max-w-3xl">
-        {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -1035,7 +1048,6 @@ export default function B2BInquiryForm() {
           </p>
         </motion.div>
 
-        {/* Form Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -1043,13 +1055,11 @@ export default function B2BInquiryForm() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="bg-white rounded-3xl p-6 md:p-10 border border-mist-200 shadow-sm"
         >
-          {/* Step Indicator */}
           <StepIndicator
             currentStep={currentStep}
             completedSteps={completedSteps}
           />
 
-          {/* Form Content */}
           <AnimatePresence mode="wait">
             <motion.div
               key={currentStep}
@@ -1065,9 +1075,9 @@ export default function B2BInquiryForm() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Navigation Buttons */}
           <div className="flex items-center justify-between mt-8 pt-6 border-t border-mist-100">
             <button
+              type="button"
               onClick={handleBack}
               disabled={currentStep === 1}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${
@@ -1082,6 +1092,7 @@ export default function B2BInquiryForm() {
 
             {currentStep < 4 ? (
               <button
+                type="button"
                 onClick={handleNext}
                 className="flex items-center gap-2 px-6 py-3 bg-ruby-700 hover:bg-ruby-600 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-ruby-700/20 text-sm"
               >
@@ -1090,6 +1101,7 @@ export default function B2BInquiryForm() {
               </button>
             ) : (
               <button
+                type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
                 className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-mist-400 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-emerald-600/20 text-sm"
