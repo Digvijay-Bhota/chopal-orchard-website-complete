@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       const randomSuffix = Math.floor(100000 + Math.random() * 900000);
       bookingNumber = `CHP-TOUR-${randomSuffix}`;
 
-      // @ts-ignore - Handles model name variations across Prisma schemas
+      // @ts-ignore
       const bookingModel = prisma.tourBooking || prisma.tour_bookings || prisma.ecoTourismBooking;
 
       const existing = await bookingModel.findFirst({
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         guestEmail: validatedData.guestEmail,
         guestPhone: validatedData.guestPhone,
         visitDate: validatedData.visitDate,
-        guestsCount: validatedData.guestsCount,
+        guestCount: validatedData.guestsCount, // Mapped to guestCount (singular) to match Prisma schema
         specialNotes: validatedData.specialNotes || null,
       },
     });
