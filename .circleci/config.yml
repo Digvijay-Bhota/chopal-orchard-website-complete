@@ -10,6 +10,12 @@ jobs:
     steps:
       - checkout
       - run: npm install
+      - run:
+          name: Deploy to Vercel
+          command: npx vercel --token $VERCEL_TOKEN --prod
+      - run:
+          name: Deploy to Netlify
+          command: npx netlify-cli deploy --auth $NETLIFY_TOKEN --prod
 
 workflows:
   sample:
