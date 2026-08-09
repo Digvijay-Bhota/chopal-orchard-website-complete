@@ -58,7 +58,7 @@ const WEATHER_REFRESH_MS = 10 * 60 * 1000; // 10 minutes
 const SOCIAL_LINKS: SocialLink[] = [
   {
     name: "Instagram",
-    url: "https://instagram.com/chopalorchard",
+    url: "https://www.instagram.com/__digvijay__007/",
     icon: <Instagram className="w-5 h-5" />,
     color: "bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600",
   },
@@ -76,13 +76,19 @@ const SOCIAL_LINKS: SocialLink[] = [
   },
   {
     name: "LinkedIn",
-    url: "https://linkedin.com/company/chopal-orchard",
+    url: "https://www.linkedin.com/in/digvijay-bhota",
     icon: <Linkedin className="w-5 h-5" />,
     color: "bg-blue-700",
   },
+   {
+    name: "X",
+    url: "https://x.com/BhotaDigvijay",
+    icon: <X className="w-5 h-5" />,
+    color: "bg-neutral-950",
+  },
 ];
 
-const WHATSAPP_NUMBER = "+919876543210";
+const WHATSAPP_NUMBER = "+917626998813";
 const WHATSAPP_MESSAGE = encodeURIComponent(
   "Hi! I'm interested in Chopal Apple Orchard's premium apples. Can you share more details?"
 );

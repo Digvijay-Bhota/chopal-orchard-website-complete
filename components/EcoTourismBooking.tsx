@@ -1,12 +1,5 @@
 "use client";
 
-/**
- * EcoTourismBooking.tsx
- * ───────────────────────────────────────────────
- * Eco-tourism Orchard Tour booking form.
- * Connects to /api/bookings to persist user reservation requests into Supabase.
- */
-
 import { useState } from "react";
 import { Calendar, Users, CheckCircle, User, Mail, Phone, Clock, Loader2, AlertCircle } from "lucide-react";
 
@@ -16,7 +9,7 @@ export default function EcoTourismBooking() {
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
-  const [tourSlot, setTourSlot] = useState("MORNING");
+  const [tourSlot, setTourSlot] = useState("MORNING_9AM");
   
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -154,9 +147,9 @@ export default function EcoTourismBooking() {
                   onChange={(e) => setTourSlot(e.target.value)}
                   className="w-full px-3 py-3 rounded-xl border border-mist-300 bg-white text-mist-900 text-sm focus:outline-none focus:ring-2 focus:ring-ruby-600"
                 >
-                  <option value="MORNING">Morning (09:00 AM)</option>
-                  <option value="AFTERNOON">Afternoon (02:00 PM)</option>
-                  <option value="EVENING">Sunset (05:00 PM)</option>
+                  <option value="MORNING_9AM">Morning (09:00 AM)</option>
+                  <option value="AFTERNOON_2PM">Afternoon (02:00 PM)</option>
+                  <option value="SUNSET_5PM">Sunset (05:00 PM)</option>
                 </select>
               </div>
 
