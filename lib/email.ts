@@ -1,7 +1,5 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 interface OrderEmailProps {
   toEmail: string;
   customerName: string;
@@ -20,6 +18,9 @@ export async function sendOrderConfirmationEmail({
       console.warn("[EMAIL_WARN] RESEND_API_KEY missing in .env. Skipping email dispatch.");
       return;
     }
+
+    // Instantiated inside the function so build-time static evaluation won't fail
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
     const emailResponse = await resend.emails.send({
       from: "Chopal Orchard <onboarding@resend.dev>", // Replace with your domain once verified on Resend
