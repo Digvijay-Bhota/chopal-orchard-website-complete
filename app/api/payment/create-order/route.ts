@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     });
 
     const count = await prisma.order.count();
-    const orderNumber = `CHP-ORD-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const orderNumber = `CHP-ORD-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
     const order = await prisma.order.create({
       data: {
