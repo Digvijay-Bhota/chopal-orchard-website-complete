@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     });
 
     const count = await prisma.order.count();
-    const orderNumber = `CHP-ORD-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+    const orderNumber = `CHP-ORD-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
     const order = await prisma.order.create({
       data: {
@@ -58,11 +58,28 @@ export async function POST(request: NextRequest) {
       currency: razorpayOrder.currency,
       keyId: process.env.RAZORPAY_KEY_ID,
     });
-  } catch (error) {
+  } 
+ 
+  catch (error) {
     console.error("Payment Order Creation Error:", error);
     return NextResponse.json(
       { error: "Failed to create payment order" },
       { status: 500 }
-    );
+    ); 
   }
-}
+}  
+  /*   
+  catch (error) {
+    console.error("Payment order creation error:", error);
+
+    return NextResponse.json(
+        {
+            error: "Failed to create payment order",
+            details: error instanceof Error ? error.message : String(error),
+        },
+        { status: 500 }
+    );
+   } 
+ }
+ */
+ 
