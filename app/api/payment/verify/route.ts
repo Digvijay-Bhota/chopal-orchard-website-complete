@@ -8,19 +8,8 @@ import {
 } from "@prisma/client";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 
-// ==================================================
-// RAZORPAY CLIENT
-// ==================================================
-
-const razorpay = new Razorpay({
-  key_id:
-    process.env.RAZORPAY_KEY_ID || "",
-
-  key_secret:
-    process.env.RAZORPAY_KEY_SECRET || "",
-});
-
-// Prevents Next.js from evaluating this route statically during `next build`
+// Prevents Next.js from evaluating this route statically
+// during `next build`.
 export const dynamic = "force-dynamic";
 
 // ==================================================
@@ -74,7 +63,27 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 2. Read request body
+    // 2. Create Razorpay client at request time
+    //
+    // IMPORTANT:
+    // Do NOT create the Razorpay client at module level.
+    //
+    // Netlify/Next.js can evaluate this route during
+    // `next build`, before runtime environment variables
+    // are available to the module.
+    // --------------------------------------------------
+
+    const razorpay =
+      new Razorpay({
+        key_id:
+          razorpayKeyId,
+
+        key_secret:
+          razorpaySecret,
+      });
+
+    // --------------------------------------------------
+    // 3. Read request body
     // --------------------------------------------------
 
     let body: unknown;
@@ -124,7 +133,7 @@ export async function POST(
       data.razorpay_signature;
 
     // --------------------------------------------------
-    // 3. Validate Razorpay fields
+    // 4. Validate Razorpay fields
     // --------------------------------------------------
 
     if (
@@ -164,7 +173,7 @@ export async function POST(
       ).trim();
 
     // --------------------------------------------------
-    // 4. Find our database order
+    // 5. Find our database order
     //
     // We use the Razorpay Order ID only to locate
     // the order that our server previously created.
@@ -199,7 +208,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 5. Verify the SERVER-STORED Razorpay Order ID
+    // 6. Verify the SERVER-STORED Razorpay Order ID
     // --------------------------------------------------
 
     const serverOrderId =
@@ -248,7 +257,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 6. Verify Razorpay signature
+    // 7. Verify Razorpay signature
     // --------------------------------------------------
 
     const signatureBody =
@@ -313,7 +322,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 7. Fetch payment directly from Razorpay
+    // 8. Fetch payment directly from Razorpay
     //
     // Signature proves authenticity of the callback.
     //
@@ -327,7 +336,7 @@ export async function POST(
       );
 
     // --------------------------------------------------
-    // 8. Verify payment belongs to this Razorpay order
+    // 9. Verify payment belongs to this Razorpay order
     // --------------------------------------------------
 
     if (
@@ -358,7 +367,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 9. Verify payment amount
+    // 10. Verify payment amount
     // --------------------------------------------------
 
     const expectedAmount =
@@ -401,7 +410,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 10. Verify currency
+    // 11. Verify currency
     // --------------------------------------------------
 
     if (
@@ -433,7 +442,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 11. Payment must be captured
+    // 12. Payment must be captured
     //
     // Do not fulfil an order merely because the payment
     // was authorised.
@@ -467,7 +476,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 12. Prevent the same payment from being attached
+    // 13. Prevent the same payment from being attached
     // to another database order
     // --------------------------------------------------
 
@@ -516,7 +525,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 13. Process payment atomically
+    // 14. Process payment atomically
     // --------------------------------------------------
 
     const result =
@@ -751,7 +760,7 @@ export async function POST(
       );
 
     // --------------------------------------------------
-    // 14. Send confirmation email only once
+    // 15. Send confirmation email only once
     // --------------------------------------------------
 
     if (
@@ -789,7 +798,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 15. Success response
+    // 16. Success response
     // --------------------------------------------------
 
     return NextResponse.json({
