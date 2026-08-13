@@ -3,18 +3,6 @@ import Razorpay from "razorpay";
 import { prisma } from "@/lib/prisma";
 
 // ==================================================
-// RAZORPAY CLIENT
-// ==================================================
-
-const razorpay = new Razorpay({
-  key_id:
-    process.env.RAZORPAY_KEY_ID || "",
-
-  key_secret:
-    process.env.RAZORPAY_KEY_SECRET || "",
-});
-
-// ==================================================
 // HELPERS
 // ==================================================
 
@@ -77,7 +65,28 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 2. Read request body
+    // 2. Create Razorpay client at request time
+    //
+    // IMPORTANT:
+    // Do NOT initialize Razorpay at module/build time.
+    //
+    // Netlify and Next.js may evaluate API route modules
+    // during `next build`. Creating the client here means
+    // Razorpay is initialized only when an actual request
+    // reaches this route.
+    // --------------------------------------------------
+
+    const razorpay =
+      new Razorpay({
+        key_id:
+          razorpayKeyId,
+
+        key_secret:
+          razorpayKeySecret,
+      });
+
+    // --------------------------------------------------
+    // 3. Read request body
     // --------------------------------------------------
 
     let body: unknown;
@@ -116,7 +125,7 @@ export async function POST(
       >;
 
     // --------------------------------------------------
-    // 3. Read customer/order fields
+    // 4. Read customer/order fields
     // --------------------------------------------------
 
     const guestEmail =
@@ -168,7 +177,7 @@ export async function POST(
       );
 
     // --------------------------------------------------
-    // 4. Validate product
+    // 5. Validate product
     //
     // IMPORTANT:
     // Product slug is the only client-supplied product
@@ -190,7 +199,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 5. Validate quantity
+    // 6. Validate quantity
     // --------------------------------------------------
 
     const rawQuantity =
@@ -243,7 +252,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 6. Find product by slug only
+    // 7. Find product by slug only
     // --------------------------------------------------
 
     const product =
@@ -266,7 +275,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 7. Check product availability
+    // 8. Check product availability
     // --------------------------------------------------
 
     if (
@@ -283,7 +292,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 8. Check stock
+    // 9. Check stock
     // --------------------------------------------------
 
     const availableStock =
@@ -311,7 +320,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 9. Calculate price FROM DATABASE
+    // 10. Calculate price FROM DATABASE
     //
     // NEVER trust a price sent by the browser.
     // --------------------------------------------------
@@ -361,7 +370,7 @@ export async function POST(
       tax;
 
     // --------------------------------------------------
-    // 10. Convert INR to paise
+    // 11. Convert INR to paise
     //
     // Razorpay expects integer currency subunits.
     // --------------------------------------------------
@@ -387,7 +396,7 @@ export async function POST(
     }
 
     // --------------------------------------------------
-    // 11. Generate internal order number
+    // 12. Generate internal order number
     // --------------------------------------------------
 
     const orderNumber =
@@ -397,7 +406,7 @@ export async function POST(
         .toUpperCase()}`;
 
     // --------------------------------------------------
-    // 12. Create unique Razorpay receipt
+    // 13. Create unique Razorpay receipt
     //
     // Razorpay receipt:
     // - maximum 40 characters
@@ -410,7 +419,7 @@ export async function POST(
         .slice(2, 8)}`;
 
     // --------------------------------------------------
-    // 13. Create Razorpay order
+    // 14. Create Razorpay order
     // --------------------------------------------------
 
     const razorpayOrder =
@@ -430,7 +439,7 @@ export async function POST(
       );
 
     // --------------------------------------------------
-    // 14. Create database order
+    // 15. Create database order
     //
     // IMPORTANT:
     // Payment is still PENDING.
@@ -534,7 +543,7 @@ export async function POST(
       });
 
     // --------------------------------------------------
-    // 15. Return only what the checkout needs
+    // 16. Return only what the checkout needs
     // --------------------------------------------------
 
     return NextResponse.json(
