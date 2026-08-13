@@ -1,8 +1,25 @@
 import { Resend } from "resend";
 
-const resend = new Resend(
-  process.env.RESEND_API_KEY
-);
+// ==================================================
+// RESEND CLIENT
+// ==================================================
+//
+// Create the client only when an email function is
+// actually called. This prevents build-time/static
+// evaluation problems when RESEND_API_KEY is not
+// available during `next build`.
+//
+
+function getResendClient() {
+  const apiKey =
+    process.env.RESEND_API_KEY;
+
+  if (!apiKey) {
+    return null;
+  }
+
+  return new Resend(apiKey);
+}
 
 // ==================================================
 // ORDER CONFIRMATION EMAIL
@@ -22,9 +39,12 @@ export async function sendOrderConfirmationEmail({
   amountPaid,
 }: OrderEmailProps) {
   try {
-    if (!process.env.RESEND_API_KEY) {
+    const resend =
+      getResendClient();
+
+    if (!resend) {
       console.warn(
-        "[EMAIL_WARN] RESEND_API_KEY missing in .env. Skipping email dispatch."
+        "[EMAIL_WARN] RESEND_API_KEY missing. Skipping email dispatch."
       );
 
       return;
@@ -245,7 +265,10 @@ export async function sendOrderShippedEmail({
   deliveryDate,
 }: ShippingEmailProps) {
   try {
-    if (!process.env.RESEND_API_KEY) {
+    const resend =
+      getResendClient();
+
+    if (!resend) {
       console.warn(
         "[EMAIL_WARN] RESEND_API_KEY missing. Skipping shipping email."
       );
@@ -547,7 +570,10 @@ export async function sendOrderDeliveredEmail({
   trackingNumber,
 }: DeliveredEmailProps) {
   try {
-    if (!process.env.RESEND_API_KEY) {
+    const resend =
+      getResendClient();
+
+    if (!resend) {
       console.warn(
         "[EMAIL_WARN] RESEND_API_KEY missing. Skipping delivered email."
       );

@@ -20,6 +20,9 @@ const razorpay = new Razorpay({
     process.env.RAZORPAY_KEY_SECRET || "",
 });
 
+// Prevents Next.js from evaluating this route statically during `next build`
+export const dynamic = "force-dynamic";
+
 // ==================================================
 // HELPERS
 // ==================================================
@@ -163,11 +166,8 @@ export async function POST(
     // --------------------------------------------------
     // 4. Find our database order
     //
-    // IMPORTANT:
-    // We do NOT trust the browser order ID as proof.
-    //
-    // We use it only to locate the order that our
-    // server previously created.
+    // We use the Razorpay Order ID only to locate
+    // the order that our server previously created.
     // --------------------------------------------------
 
     const order =
@@ -200,9 +200,6 @@ export async function POST(
 
     // --------------------------------------------------
     // 5. Verify the SERVER-STORED Razorpay Order ID
-    //
-    // The signature must use the order ID stored in
-    // our database, not blindly trust the browser value.
     // --------------------------------------------------
 
     const serverOrderId =
@@ -233,7 +230,9 @@ export async function POST(
         {
           orderId:
             order.id,
+
           serverOrderId,
+
           browserOrderId,
         }
       );
@@ -318,8 +317,8 @@ export async function POST(
     //
     // Signature proves authenticity of the callback.
     //
-    // The API fetch lets us verify the actual payment
-    // status, amount, currency, and order association.
+    // The API fetch verifies the actual payment status,
+    // amount, currency, and order association.
     // --------------------------------------------------
 
     const razorpayPayment =
@@ -339,8 +338,10 @@ export async function POST(
         "[VERIFY_PAYMENT_ORDER_MISMATCH]",
         {
           paymentId,
+
           expectedOrderId:
             serverOrderId,
+
           actualOrderId:
             razorpayPayment.order_id,
         }
@@ -382,7 +383,9 @@ export async function POST(
         {
           orderId:
             order.id,
+
           expectedAmount,
+
           actualAmount,
         }
       );
@@ -410,8 +413,10 @@ export async function POST(
         {
           orderId:
             order.id,
+
           expectedCurrency:
             order.currency,
+
           actualCurrency:
             razorpayPayment.currency,
         }
@@ -443,7 +448,9 @@ export async function POST(
         {
           orderId:
             order.id,
+
           paymentId,
+
           status:
             razorpayPayment.status,
         }
@@ -486,10 +493,13 @@ export async function POST(
         "[VERIFY_PAYMENT_REUSED]",
         {
           paymentId,
+
           existingOrderId:
             existingPayment.id,
+
           existingOrderNumber:
             existingPayment.orderNumber,
+
           attemptedOrderId:
             order.id,
         }
@@ -546,6 +556,7 @@ export async function POST(
           ) {
             // If this exact payment was already recorded,
             // this is a safe idempotent retry.
+
             if (
               currentOrder.razorpayPaymentId ===
               paymentId
@@ -561,6 +572,7 @@ export async function POST(
 
             // A different payment must never overwrite
             // the payment already attached to this order.
+
             throw new Error(
               "Order has already been paid with a different payment"
             );
@@ -796,6 +808,12 @@ export async function POST(
 
       orderNumber:
         result.order.orderNumber,
+
+      razorpayOrderId:
+        serverOrderId,
+
+      razorpayPaymentId:
+        paymentId,
     });
   } catch (error) {
     console.error(
