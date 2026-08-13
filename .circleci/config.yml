@@ -18,7 +18,10 @@ jobs:
       - run:
           name: Deploy to Vercel
           command: |
-            npx vercel --token "$VERCEL_TOKEN" --prod --yes
+            npx vercel \
+              --token "$VERCEL_TOKEN" \
+              --prod \
+              --yes
 
       - run:
           name: Deploy to Netlify
