@@ -6,16 +6,27 @@ orbs:
 jobs:
   build:
     docker:
-      - image: cimg/node:22.12.0
+      - image: cimg/node:22.13.1
+
     steps:
       - checkout
-      - run: npm install
+
+      - run:
+          name: Install dependencies
+          command: npm ci
+
       - run:
           name: Deploy to Vercel
-          command: npx vercel --token $VERCEL_TOKEN --prod --yes
+          command: |
+            npx vercel --token "$VERCEL_TOKEN" --prod --yes
+
       - run:
           name: Deploy to Netlify
-          command: npx netlify-cli deploy --auth $NETLIFY_TOKEN --prod
+          command: |
+            npx netlify-cli deploy \
+              --auth "$NETLIFY_TOKEN" \
+              --site "$NETLIFY_SITE_ID" \
+              --prod
 
 workflows:
   sample:
