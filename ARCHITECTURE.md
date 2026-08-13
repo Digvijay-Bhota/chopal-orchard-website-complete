@@ -1,6 +1,7 @@
 # 🏔️ Chopal Apple Orchard — System Architecture
 
 ## Overview
+
 Production-grade Next.js 14+ application deployed on Vercel Edge Network, backed by Supabase PostgreSQL, with Redis caching, Cloudinary CDN, and Razorpay payments.
 
 ---
@@ -112,24 +113,24 @@ Production-grade Next.js 14+ application deployed on Vercel Edge Network, backed
 
 ## Technology Stack Summary
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend** | Next.js 14 (App Router) | SSR/SSG, API routes, server actions |
-| **Styling** | Tailwind CSS + shadcn/ui | Utility-first, Himalayan earth palette |
-| **Animation** | Framer Motion | Parallax, scroll reveals, page transitions |
-| **State** | Zustand | Client cart, UI state, form wizard |
-| **ORM** | Prisma | Type-safe database operations |
-| **Database** | Supabase PostgreSQL | Primary data store with RLS |
-| **Cache** | Redis (Upstash) | Sessions, inventory, weather, rate limits |
-| **Media** | Cloudinary | Image optimization, responsive srcsets, video |
-| **Payments** | Razorpay | UPI, Cards, NetBanking, EMI |
-| **Email** | SendGrid | Transactional + marketing emails |
-| **SMS/WA** | Twilio / WhatsApp Business API | Order alerts, B2B quotes |
-| **Maps** | Mapbox | Orchard location, elevation visualization |
-| **Weather** | OpenWeatherMap | Live Chopal weather widget |
-| **Auth** | NextAuth.js / Supabase Auth | OAuth, phone OTP |
-| **Monitoring** | Vercel Analytics + Sentry | Performance, error tracking |
-| **CI/CD** | GitHub → Vercel | Auto-deploy on push |
+| Layer          | Technology                     | Purpose                                       |
+| -------------- | ------------------------------ | --------------------------------------------- |
+| **Frontend**   | Next.js 14 (App Router)        | SSR/SSG, API routes, server actions           |
+| **Styling**    | Tailwind CSS + shadcn/ui       | Utility-first, Himalayan earth palette        |
+| **Animation**  | Framer Motion                  | Parallax, scroll reveals, page transitions    |
+| **State**      | Zustand                        | Client cart, UI state, form wizard            |
+| **ORM**        | Prisma                         | Type-safe database operations                 |
+| **Database**   | Supabase PostgreSQL            | Primary data store with RLS                   |
+| **Cache**      | Redis (Upstash)                | Sessions, inventory, weather, rate limits     |
+| **Media**      | Cloudinary                     | Image optimization, responsive srcsets, video |
+| **Payments**   | Razorpay                       | UPI, Cards, NetBanking, EMI                   |
+| **Email**      | SendGrid                       | Transactional + marketing emails              |
+| **SMS/WA**     | Twilio / WhatsApp Business API | Order alerts, B2B quotes                      |
+| **Maps**       | Mapbox                         | Orchard location, elevation visualization     |
+| **Weather**    | OpenWeatherMap                 | Live Chopal weather widget                    |
+| **Auth**       | NextAuth.js / Supabase Auth    | OAuth, phone OTP                              |
+| **Monitoring** | Vercel Analytics + Sentry      | Performance, error tracking                   |
+| **CI/CD**      | GitHub → Vercel                | Auto-deploy on push                           |
 
 ---
 

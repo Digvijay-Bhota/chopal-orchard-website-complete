@@ -1,85 +1,582 @@
 import { NextRequest, NextResponse } from "next/server";
 import Razorpay from "razorpay";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_placeholder",
-  key_secret: process.env.RAZORPAY_KEY_SECRET || "placeholder_secret",
+  key_id:
+    process.env.RAZORPAY_KEY_ID || "",
+
+  key_secret:
+    process.env.RAZORPAY_KEY_SECRET || "",
 });
 
-export async function POST(request: NextRequest) {
-  try {
-    const { amount, currency = "INR", guestEmail, guestPhone, guestName } = await request.json();
+// ==================================================
+// HELPERS
+// ==================================================
 
-    if (!amount || amount <= 0) {
+function cleanString(
+  value: unknown,
+  maxLength: number
+) {
+  if (
+    typeof value !== "string"
+  ) {
+    return null;
+  }
+
+  const cleaned =
+    value.trim();
+
+  if (!cleaned) {
+    return null;
+  }
+
+  return cleaned.slice(
+    0,
+    maxLength
+  );
+}
+
+// ==================================================
+// POST — Create Razorpay payment order
+// ==================================================
+
+export async function POST(
+  request: NextRequest
+) {
+  try {
+    // --------------------------------------------------
+    // 1. Validate Razorpay configuration
+    // --------------------------------------------------
+
+    const razorpayKeyId =
+      process.env.RAZORPAY_KEY_ID;
+
+    const razorpayKeySecret =
+      process.env.RAZORPAY_KEY_SECRET;
+
+    if (
+      !razorpayKeyId ||
+      !razorpayKeySecret
+    ) {
+      console.error(
+        "[PAYMENT_CONFIG_ERROR] Razorpay credentials are missing"
+      );
+
       return NextResponse.json(
-        { error: "Invalid order amount" },
+        {
+          error:
+            "Payment service is not configured",
+        },
+        { status: 500 }
+      );
+    }
+
+    // --------------------------------------------------
+    // 2. Read request body
+    // --------------------------------------------------
+
+    let body: unknown;
+
+    try {
+      body =
+        await request.json();
+    } catch {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid request body",
+        },
         { status: 400 }
       );
     }
 
-    const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(amount * 100), // convert INR to paise
-      currency,
-      receipt: `receipt_${Date.now()}`,
-    });
-
-    const count = await prisma.order.count();
-    const orderNumber = `CHP-ORD-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        guestEmail,
-        guestPhone,
-        guestName,
-        paymentId: razorpayOrder.id,
-        subtotal: amount,
-        shippingCost: 0,
-        tax: 0,
-        total: amount,
-        currency,
-        shippingName: guestName || "Customer",
-        shippingAddress: "To be updated",
-        shippingCity: "Chopal",
-        shippingState: "Himachal Pradesh",
-        shippingPincode: "171211",
-        shippingPhone: guestPhone || "0000000000",
-      },
-    });
-
-    return NextResponse.json({
-      id: razorpayOrder.id,
-      orderId: razorpayOrder.id,
-      dbOrderId: order.id,
-      amount: razorpayOrder.amount,
-      currency: razorpayOrder.currency,
-      keyId: process.env.RAZORPAY_KEY_ID,
-    });
-  } 
- 
-  catch (error) {
-    console.error("Payment Order Creation Error:", error);
-    return NextResponse.json(
-      { error: "Failed to create payment order" },
-      { status: 500 }
-    ); 
-  }
-}  
-  /*   
-  catch (error) {
-    console.error("Payment order creation error:", error);
-
-    return NextResponse.json(
+    if (
+      !body ||
+      typeof body !== "object" ||
+      Array.isArray(body)
+    ) {
+      return NextResponse.json(
         {
-            error: "Failed to create payment order",
-            details: error instanceof Error ? error.message : String(error),
+          error:
+            "Invalid request body",
         },
-        { status: 500 }
+        { status: 400 }
+      );
+    }
+
+    const data =
+      body as Record<
+        string,
+        unknown
+      >;
+
+    // --------------------------------------------------
+    // 3. Read customer/order fields
+    // --------------------------------------------------
+
+    const guestEmail =
+      cleanString(
+        data.guestEmail,
+        254
+      );
+
+    const guestPhone =
+      cleanString(
+        data.guestPhone,
+        30
+      );
+
+    const guestName =
+      cleanString(
+        data.guestName,
+        100
+      );
+
+    const shippingAddress =
+      cleanString(
+        data.shippingAddress,
+        300
+      );
+
+    const shippingCity =
+      cleanString(
+        data.shippingCity,
+        100
+      );
+
+    const shippingState =
+      cleanString(
+        data.shippingState,
+        100
+      );
+
+    const shippingPincode =
+      cleanString(
+        data.shippingPincode,
+        20
+      );
+
+    const productSlug =
+      cleanString(
+        data.productSlug,
+        200
+      );
+
+    // --------------------------------------------------
+    // 4. Validate product
+    //
+    // IMPORTANT:
+    // Product slug is the only client-supplied product
+    // identifier we trust.
+    //
+    // We deliberately do NOT accept productName as a
+    // fallback because names are not guaranteed to be
+    // unique.
+    // --------------------------------------------------
+
+    if (!productSlug) {
+      return NextResponse.json(
+        {
+          error:
+            "Product is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // --------------------------------------------------
+    // 5. Validate quantity
+    // --------------------------------------------------
+
+    const rawQuantity =
+      data.quantityKg;
+
+    const quantity =
+      Number(rawQuantity);
+
+    if (
+      rawQuantity === null ||
+      rawQuantity === undefined ||
+      rawQuantity === "" ||
+      !Number.isFinite(quantity) ||
+      quantity <= 0
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Quantity must be greater than 0",
+        },
+        { status: 400 }
+      );
+    }
+
+    // --------------------------------------------------
+    // Quantity precision
+    //
+    // Prevent absurd precision such as:
+    // 0.123456789123 kg
+    //
+    // Keep maximum 3 decimal places.
+    // --------------------------------------------------
+
+    const roundedQuantity =
+      Math.round(
+        quantity * 1000
+      ) / 1000;
+
+    if (
+      roundedQuantity !==
+      quantity
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Quantity can have a maximum of 3 decimal places",
+        },
+        { status: 400 }
+      );
+    }
+
+    // --------------------------------------------------
+    // 6. Find product by slug only
+    // --------------------------------------------------
+
+    const product =
+      await prisma.product.findUnique(
+        {
+          where: {
+            slug: productSlug,
+          },
+        }
+      );
+
+    if (!product) {
+      return NextResponse.json(
+        {
+          error:
+            "Product not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    // --------------------------------------------------
+    // 7. Check product availability
+    // --------------------------------------------------
+
+    if (
+      !product.isAvailable &&
+      !product.isPreOrder
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Product is currently unavailable",
+        },
+        { status: 400 }
+      );
+    }
+
+    // --------------------------------------------------
+    // 8. Check stock
+    // --------------------------------------------------
+
+    const availableStock =
+      Number(
+        product.stockKg
+      );
+
+    if (
+      !product.isPreOrder &&
+      (
+        !Number.isFinite(
+          availableStock
+        ) ||
+        availableStock <
+          roundedQuantity
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            `Only ${availableStock} kg is available`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // --------------------------------------------------
+    // 9. Calculate price FROM DATABASE
+    //
+    // NEVER trust a price sent by the browser.
+    // --------------------------------------------------
+
+    const unitPrice =
+      Number(
+        product.pricePerKg
+      );
+
+    if (
+      !Number.isFinite(
+        unitPrice
+      ) ||
+      unitPrice <= 0
+    ) {
+      console.error(
+        "[INVALID_PRODUCT_PRICE]",
+        {
+          productId:
+            product.id,
+
+          productSlug:
+            product.slug,
+        }
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "Product price is invalid",
+        },
+        { status: 400 }
+      );
+    }
+
+    const subtotal =
+      unitPrice *
+      roundedQuantity;
+
+    const shippingCost = 0;
+
+    const tax = 0;
+
+    const total =
+      subtotal +
+      shippingCost +
+      tax;
+
+    // --------------------------------------------------
+    // 10. Convert INR to paise
+    //
+    // Razorpay expects integer currency subunits.
+    // --------------------------------------------------
+
+    const amountInPaise =
+      Math.round(
+        total * 100
+      );
+
+    if (
+      !Number.isSafeInteger(
+        amountInPaise
+      ) ||
+      amountInPaise < 100
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid payment amount",
+        },
+        { status: 400 }
+      );
+    }
+
+    // --------------------------------------------------
+    // 11. Generate internal order number
+    // --------------------------------------------------
+
+    const orderNumber =
+      `CHP-ORD-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)
+        .toUpperCase()}`;
+
+    // --------------------------------------------------
+    // 12. Create unique Razorpay receipt
+    //
+    // Razorpay receipt:
+    // - maximum 40 characters
+    // - should be unique
+    // --------------------------------------------------
+
+    const receipt =
+      `chp_${Date.now()}_${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
+
+    // --------------------------------------------------
+    // 13. Create Razorpay order
+    // --------------------------------------------------
+
+    const razorpayOrder =
+      await razorpay.orders.create(
+        {
+          amount:
+            amountInPaise,
+
+          currency:
+            "INR",
+
+          receipt,
+
+          partial_payment:
+            false,
+        }
+      );
+
+    // --------------------------------------------------
+    // 14. Create database order
+    //
+    // IMPORTANT:
+    // Payment is still PENDING.
+    //
+    // We do NOT mark the order as paid here.
+    // --------------------------------------------------
+
+    const order =
+      await prisma.order.create({
+        data: {
+          orderNumber,
+
+          guestEmail,
+
+          guestPhone,
+
+          guestName,
+
+          status:
+            "PENDING",
+
+          paymentStatus:
+            "PENDING",
+
+          paymentId:
+            null,
+
+          razorpayOrderId:
+            razorpayOrder.id,
+
+          razorpayPaymentId:
+            null,
+
+          paymentMethod:
+            "RAZORPAY",
+
+          subtotal,
+
+          shippingCost,
+
+          tax,
+
+          total,
+
+          currency:
+            "INR",
+
+          shippingName:
+            guestName ||
+            "Customer",
+
+          shippingAddress:
+            shippingAddress ||
+            "To be updated",
+
+          shippingCity:
+            shippingCity ||
+            "Chopal",
+
+          shippingState:
+            shippingState ||
+            "Himachal Pradesh",
+
+          shippingPincode:
+            shippingPincode ||
+            "171211",
+
+          shippingPhone:
+            guestPhone ||
+            "0000000000",
+
+          items: {
+            create: {
+              productId:
+                product.id,
+
+              quantityKg:
+                roundedQuantity,
+
+              unitPrice,
+
+              totalPrice:
+                subtotal,
+            },
+          },
+        },
+
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  variety: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+    // --------------------------------------------------
+    // 15. Return only what the checkout needs
+    // --------------------------------------------------
+
+    return NextResponse.json(
+      {
+        success: true,
+
+        id:
+          razorpayOrder.id,
+
+        orderId:
+          razorpayOrder.id,
+
+        razorpayOrderId:
+          razorpayOrder.id,
+
+        dbOrderId:
+          order.id,
+
+        orderNumber:
+          order.orderNumber,
+
+        amount:
+          razorpayOrder.amount,
+
+        currency:
+          razorpayOrder.currency,
+
+        keyId:
+          razorpayKeyId,
+      },
+      { status: 200 }
     );
-   } 
- }
- */
- 
+  } catch (error) {
+    console.error(
+      "[PAYMENT_ORDER_CREATION_ERROR]",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+
+        error:
+          "Failed to create payment order",
+      },
+      { status: 500 }
+    );
+  }
+}

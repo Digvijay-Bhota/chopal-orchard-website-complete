@@ -35,3 +35,6 @@ Thumbs.db
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# TypeScript
+tsconfig.tsbuildinfo
